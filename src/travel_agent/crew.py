@@ -1,33 +1,29 @@
-from crewai import Agent, Crew, Process, Task
-from crewai.project import CrewBase, agent, crew, task
-from crewai.agents.agent_builder.base_agent import BaseAgent
-from typing import List
-from crewai import Agent, Crew, Process, Task
-from crewai.project import CrewBase, agent, crew, task
+# src/travel_agent/crew.py
 import os
 import sys
-# Add the parent directory to the Python path
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from crewai import LLM
-from pydantic import BaseModel, Field
-from typing import List, Optional
+from dotenv import load_dotenv, find_dotenv
 
-from crewai import Agent, Crew, Task, Process
-from travel.src.travel_agent.tools.custom_tool.py import get_weather
+# If you really need this path hack, keep it; otherwise pip -e . makes it unnecessary
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+from crewai import Agent, Crew, Task, Process, LLM
+from crewai.project import CrewBase, agent, crew, task
+from tools.custom_tool import get_weather
+
+# Load env and tune LiteLLM/Groq behavior
+load_dotenv(find_dotenv())
+os.environ.setdefault("LITELLM_BASE_URL", "https://api.groq.com/openai/v1")
+os.environ.setdefault("LITELLM_MAX_RETRIES", "2")
 
 llm = LLM(
-    model="gemini/gemini-2.5-flash",
-    
-    api_key=" ",
-    
+    model="groq/llama-3.1-8b-instant",
+    api_key=os.getenv("GROQ_API_KEY", ""),
+    temperature=0.0,
+    max_tokens=256,   # was 128 — give room for final line
+    num_retries=0,
 )
-
-
-
 @CrewBase
-class Travel_agent_crew():
-    """TravelAgent crew"""
-
+class Travel_agent_crew:
     agents_config = 'config/agents.yaml'
     tasks_config = 'config/tasks.yaml'
 
@@ -35,119 +31,33 @@ class Travel_agent_crew():
     def travel_manager(self) -> Agent:
         return Agent(
             config=self.agents_config['travel_manager'],
-            allow_delegation=True,
+            allow_delegation=False,
             llm=llm,
-            function_calling_llm=llm, 
-            tools=[], 
-            reasoning=False 
-          
-            
-        )
-
-    @agent
-    def weather_agent(self) -> Agent:
-        return Agent(
-            config=self.agents_config['weather_agent'],
-            verbose=True ,
-            allow_delegation=True,
-            llm=llm,
-            function_calling_llm=llm, 
-            tools=[get_weather], 
-            reasoning=False 
-        )
-
-    @agent
-    def transportation_finder(self) -> Agent:
-        return Agent(
-            config=self.agents_config['transportation_finder'],
-            verbose=True ,
-            allow_delegation=True,
-            llm=llm,
-            function_calling_llm=llm, 
-            tools=[], 
-            reasoning=False 
-        )
-
-    @agent
-    def accommodation_finder(self) -> Agent:
-        return Agent(
-            config=self.agents_config['accommodation_finder'],
-            verbose=True ,
-            allow_delegation=True,
-            llm=llm,
-            function_calling_llm=llm, 
-            tools=[], 
-            reasoning=False 
-        )
-
-    @agent
-    def destination_experience_finder(self) -> Agent:
-        return Agent(
-            config=self.agents_config['destination_experience_finder'],
-            verbose=True ,
-            allow_delegation=True,
-            llm=llm,
-            function_calling_llm=llm, 
-            tools=[], 
-            reasoning=False 
-        )
-
-    @task
-    def gather_weather_info(self) -> Task:
-        return Task(
-            config=self.tasks_config['gather_weather_info'],
-            agent=self.weather_agent(),
-            markdown = True
-        )
-
-    @task
-    def find_transportation(self) -> Task:
-        return Task(
-            config=self.tasks_config['find_transportation'],
-            agent=self.transportation_finder() ,
-            markdown = True
-        )
-
-    @task
-    def find_accommodation(self) -> Task:
-        return Task(
-            config=self.tasks_config['find_accommodation'],
-            agent=self.accommodation_finder() , 
-            markdown = True
-        )
-
-    @task
-    def find_experiences(self) -> Task:
-        return Task(
-            config=self.tasks_config['find_experiences'],
-            agent=self.destination_experience_finder() , 
-            markdown = True
+            function_calling_llm=llm,
+            tools=[get_weather],
+            reasoning=False,
+            verbose=False,
+            max_iter=1,      # <-- CrewAI uses max_iter (not max_iterations)
+            memory=False,
         )
 
     @task
     def travel_manager_task(self) -> Task:
         return Task(
             config=self.tasks_config['travel_manager_task'],
-            agent=self.travel_manager() ,
-            markdown = True
+            agent=self.travel_manager(),
+            markdown=True,
         )
 
     @crew
     def crew(self) -> Crew:
-        """Creates the TravelAgent crew"""
         return Crew(
-            agents=[self.destination_experience_finder(),
-            self.accommodation_finder(),
-            self.transportation_finder(),
-            self.weather_agent()],
-            tasks=self.tasks,
-            llm = llm,
-            process=Process.hierarchical,
+            agents=[self.travel_manager()],
+            tasks=[self.travel_manager_task()],
+            llm=llm,
+            process=Process.sequential,
             manager_agent=self.travel_manager(),
-            function_calling_llm=llm, 
+            function_calling_llm=llm,
             verbose=True,
-            planning=True ,
-            planning_llm = llm 
-
+            planning=False,
         )
-

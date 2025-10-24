@@ -1,4 +1,4 @@
-from crewai.tools import BaseTool
+from crewai.tools import BaseTool,tool
 from typing import Type
 from pydantic import BaseModel, Field
 from crewai.tools import tool
@@ -20,15 +20,18 @@ class MyCustomTool(BaseTool):
         return "this is an example of a tool output, ignore it and move along."
 
 
-
-
 @tool("get_weather")
 def get_weather(city: str) -> str:
-    """Fetch weather information for a city."""
-    import requests
-    api_url = f"https://api.weather.com/v1/location/{city}?apiKey=YOUR_API_KEY"
-    response = requests.get(api_url)
-    if response.status_code == 200:
-        return response.json().get("weather", "No info")
-    return "Error fetching data"
+    """Return a short stubbed forecast string for the given city."""
+    return f"Stub weather for {city}: 24–28°C, partly cloudy."
+
+##@tool("get_weather")
+##def get_weather(city: str) -> str:
+##    """Fetch weather information for a city."""
+##    import requests
+##    api_url = f"https://api.weather.com/v1/location/{city}?apiKey=YOUR_API_KEY"
+##    response = requests.get(api_url)
+##    if response.status_code == 200:
+##        return response.json().get("weather", "No info")
+##    return "Error fetching data"
 

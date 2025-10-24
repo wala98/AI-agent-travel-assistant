@@ -1,6 +1,7 @@
 import sys
 import os
 import uvicorn 
+from main import process_message
 
 # Add the project root to Python path
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -16,8 +17,6 @@ from pydantic import BaseModel  # Add this import
 current_dir = os.path.dirname(os.path.abspath(__file__))
 src_root = os.path.abspath(os.path.join(current_dir, '..', '..'))
 sys.path.insert(0, src_root)
-from travel.src.travel_agent.main import process_message
-
 
 
 
@@ -55,7 +54,7 @@ def orchestrate(body: Dict[str, Any]):
     else:
         raise HTTPException(status_code=400, detail="Invalid conversation_input format")
 
-    # Process through your travel agent
+    # Process through your travel agent 
     response = process_message(conversation_text)
     return {"response": response}
 

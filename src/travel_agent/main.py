@@ -1,61 +1,50 @@
-
-import sys
+# src/travel_agent/main.py
 import os
-# Add the project root to the Python path
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-
-from travel.src.travel_agent.crew import Travel_agent_crew
-import re  # Add this import
-
+import sys
 import re
+import traceback
 from typing import Union, List, Dict
 
+# Ensure project root on path (so 'crew' resolves)
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+from crew import Travel_agent_crew  # after path tweak
+
+TRIGGERS = re.compile(r"\b(ai_agent|walid_travel|GoAround)\b", re.IGNORECASE)
 
 def trigger_word(message: Union[str, List[Dict[str, str]]]) -> bool:
-    """
-    Check if a message (string) or a list of messages contains any trigger words
-    to start the AI agent.
-    """
-
-    # Define trigger words (case-insensitive)
-    combined_triggers = re.compile(
-        r"\b("
-        r"ai_agent|walid_travel|GoAround"  # Add more triggers here if needed
-        r")\b",
-        flags=re.IGNORECASE
-    )
-
     if isinstance(message, str):
-        # Single string: check directly
-        return bool(combined_triggers.search(message))
-    
-    elif isinstance(message, list):
-        # List of messages: check each message's content
+        return bool(TRIGGERS.search(message))
+    if isinstance(message, list):
         for msg in message:
-            content = msg.get("content", "")
-            if combined_triggers.search(content):
+            if TRIGGERS.search(msg.get("content", "")):
                 return True
         return False
-    
-    else:
-        raise ValueError("Invalid input type. Must be str or list of messages.")
+    raise ValueError("Invalid input type. Must be str or list of messages.")
+# ... imports stay the same
 
+def _only_final_line(text: str) -> str:
+    if not text:
+        return "ERROR: empty result"
+    # Prefer an explicit "Final Answer:" line
+    if "Final Answer:" in text:
+        line = text.split("Final Answer:", 1)[1]
+        line = line.splitlines()[0].strip()
+        return f"Final Answer: {line}"
+    # Fallback: collapse to first non-empty line
+    first = next((ln.strip() for ln in text.splitlines() if ln.strip()), "")
+    return f"Final Answer: {first[:180]}"  # hard cap just in case
 
-# ---------------- Main crew Function ----------------
 def process_message(conversation_input) -> str:
-    # Convert list of messages to text if needed
     if isinstance(conversation_input, list):
         conversation_input = "\n".join(
             [f"{msg['sender']}: {msg['content']}" for msg in conversation_input]
         )
-
     if trigger_word(conversation_input):
         try:
             travel_agent = Travel_agent_crew().crew()
             result = travel_agent.kickoff(inputs={"conversation_input": conversation_input})
-            return result
-        except Exception as e:
-            return f"Sorry, I encountered an error: {str(e)}"
-
+            return _only_final_line(str(result))
+        except Exception:
+            return "ERROR:\n" + "".join(traceback.format_exc())
     return "No trigger words detected."
-    
