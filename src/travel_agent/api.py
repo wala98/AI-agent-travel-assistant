@@ -1,68 +1,73 @@
-import sys
-import os
-import uvicorn 
-from main import process_message
-
-# Add the project root to Python path
-current_dir = os.path.dirname(os.path.abspath(__file__))
-project_root = os.path.abspath(os.path.join(current_dir, '..', '..', '..'))
-sys.path.insert(0, project_root)
-
+# src/travel_agent/api.py
+import os, sys
+from typing import Any, Dict, List, Optional, Union
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from typing import Dict, Any
-from pydantic import BaseModel  # Add this import
-# Import your function
-# ✅ Dynamically add the "travel_agent/src" folder to sys.path
-current_dir = os.path.dirname(os.path.abspath(__file__))
-src_root = os.path.abspath(os.path.join(current_dir, '..', '..'))
-sys.path.insert(0, src_root)
+from pydantic import BaseModel, Field
 
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+SRC_ROOT = os.path.abspath(os.path.join(CURRENT_DIR, '..', '..'))
+sys.path.insert(0, SRC_ROOT)
 
+# Import after path fix
+try:
+    from travel_agent.main import process_message
+except ImportError:
+    from main import process_message
 
-from fastapi import FastAPI
-import uvicorn
+class ChatMessage(BaseModel):
+    sender: str
+    content: str
+    timestamp: Optional[str] = None
 
-from fastapi import FastAPI
+class OrchestrateRequest(BaseModel):
+    conversation_input: Union[str, List[ChatMessage]]
 
-app = FastAPI()
+# ▶ Structured response models
+class Destination(BaseModel):
+    city: Optional[str] = None
+    country: Optional[str] = None
+    assumed: bool = False
+
+class Dates(BaseModel):
+    start: Optional[str] = None  # "YYYY-MM-DD" or null
+    end: Optional[str] = None
+    assumed: bool = False
+
+class OrchestrateStructuredResponse(BaseModel):
+    destination: Optional[Destination] = None
+    dates: Optional[Dates] = None
+    weather: Optional[str] = None
+    transport: Optional[str] = None
+    stay: Optional[str] = None
+    experiences: Optional[List[str]] = None
+    # Optionals for error/info cases:
+    error: Optional[str] = None
+    details: Optional[str] = None
+    info: Optional[str] = None
+
+app = FastAPI(title="Travel Orchestrator", version="0.2.0")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.get("/health")
 def health():
     return {"status": "ok", "message": "Simple test server"}
 
-@app.get("/")
-def root():
-    return {"message": "Hello World"}
-
-
-@app.post("/orchestrate")
-def orchestrate(body: Dict[str, Any]):
-    conversation_input = body.get("conversation_input")
-
-    if not conversation_input:
-        raise HTTPException(status_code=400, detail="conversation_input is required")
-
-    # ✅ Ensure the input is a list (from Streamlit)
-    if isinstance(conversation_input, list):
-        # Join all message contents into one text block (for example)
-        conversation_text = "\n".join(
-            [f"{msg['sender']}: {msg['content']}" for msg in conversation_input]
-        )
-    elif isinstance(conversation_input, str):
-        conversation_text = conversation_input
+@app.post("/orchestrate", response_model=OrchestrateStructuredResponse)
+def orchestrate(body: OrchestrateRequest):
+    ci = body.conversation_input
+    if isinstance(ci, list):
+        conversation_text = "\n".join([f"{m.sender}: {m.content}" for m in ci])
+    elif isinstance(ci, str):
+        conversation_text = ci
     else:
         raise HTTPException(status_code=400, detail="Invalid conversation_input format")
 
-    # Process through your travel agent 
-    response = process_message(conversation_text)
-    return {"response": response}
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run("api:app", host="127.0.0.1", port=8000, reload=True)
-
-
-
-
-    
+    result = process_message(conversation_text)
+    return result  # already a dict with the structured fields

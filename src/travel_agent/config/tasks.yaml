@@ -1,10 +1,23 @@
 travel_manager_task:
   description: >
     Read {conversation_input}.
-    Call get_weather ONCE with the inferred destination city.
-    After the tool Observation, output EXACTLY one line (no markdown, no bullets):
-    Final Answer: <≤20 words covering destination, dates (assumed if missing), brief weather, one transport, one stay, 2–3 experiences. Mark assumptions "(assumed)".>
-    Rules: No delegation. No questions. No extra text before/after the single line. Do not call tools more than once.
+    Infer a specific destination **city** (not a country). If only a country is mentioned, pick the most likely city (assumed).
+    Call get_weather **exactly once** with that city.
+
+    ▶ After the tool Observation, output **EXACTLY one JSON object** (no markdown, no backticks, no extra text), with this schema:
+    ▶ {
+    ▶   "destination": {"city": "<string>", "country": "<string|null>", "assumed": <true|false>},
+    ▶   "dates": {"start": "<YYYY-MM-DD|null>", "end": "<YYYY-MM-DD|null>", "assumed": <true|false>},
+    ▶   "weather": "<short string|null>",
+    ▶   "transport": "<short string|null>",
+    ▶   "stay": "<short string|null>",
+    ▶   "experiences": ["<short string>", ...]  # 0 to 3 items max
+    ▶ }
+
+    Rules:
+    - No delegation. No questions.
+    - Do not call tools more than once.
+    - If any field is unknown/not requested, set it to null (or empty list for experiences).
   expected_output: >
-    Exactly one line starting with "Final Answer: ".
+    Exactly one JSON object as specified above (no markdown).
   agent: travel_manager
