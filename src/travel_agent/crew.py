@@ -14,7 +14,7 @@ from crewai import LLM
 llm = LLM(
     model="gemini/gemini-2.5-flash",
     
-    api_key="AIzaSyANWqZp6fpzdBzSDAgKqkaC0CrnFsQVbZI",
+    api_key=" ",
     
 )
 from pydantic import BaseModel, Field
@@ -147,4 +147,5 @@ class Travel_agent_crew():
             verbose=True,
             planning=True ,
             planning_llm = llm 
+
         )
