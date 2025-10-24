@@ -9,7 +9,11 @@ import sys
 # Add the parent directory to the Python path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from crewai import LLM
+from pydantic import BaseModel, Field
+from typing import List, Optional
 
+from crewai import Agent, Crew, Task, Process
+from travel.src.travel_agent.tools.custom_tool.py import get_weather
 
 llm = LLM(
     model="gemini/gemini-2.5-flash",
@@ -17,11 +21,8 @@ llm = LLM(
     api_key=" ",
     
 )
-from pydantic import BaseModel, Field
-from typing import List, Optional
 
-from crewai import Agent, Crew, Task, Process
-from crewai.project import CrewBase, agent, task, crew
+
 
 @CrewBase
 class Travel_agent_crew():
@@ -51,7 +52,7 @@ class Travel_agent_crew():
             allow_delegation=True,
             llm=llm,
             function_calling_llm=llm, 
-            tools=[], 
+            tools=[get_weather], 
             reasoning=False 
         )
 
@@ -149,3 +150,4 @@ class Travel_agent_crew():
             planning_llm = llm 
 
         )
+
