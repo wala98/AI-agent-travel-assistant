@@ -8,7 +8,8 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from crewai import Agent, Crew, Task, Process, LLM
 from crewai.project import CrewBase, agent, crew, task
-from tools.custom_tool import get_weather
+from tools.custom_tool import get_weather, get_weather_range, get_city_info, get_hotel_info, get_nearby_places
+
 
 # Load env and tune LiteLLM/Groq behavior
 load_dotenv(find_dotenv())
@@ -34,7 +35,7 @@ class Travel_agent_crew:
             allow_delegation=False,
             llm=llm,
             function_calling_llm=llm,
-            tools=[get_weather],
+            tools=[get_weather, get_weather_range, get_city_info, get_hotel_info, get_nearby_places],
             reasoning=False,
             verbose=False,
             max_iter=1,      # <-- CrewAI uses max_iter (not max_iterations)

@@ -1,23 +1,71 @@
 travel_manager_task:
   description: >
-    Read {conversation_input}.
-    Infer a specific destination **city** (not a country). If only a country is mentioned, pick the most likely city (assumed).
-    Call get_weather **exactly once** with that city.
+    Read:
+      - conversation: {conversation_input}
+      - intent: {intent}
+      - params: {params}
 
-    ▶ After the tool Observation, output **EXACTLY one JSON object** (no markdown, no backticks, no extra text), with this schema:
-    ▶ {
-    ▶   "destination": {"city": "<string>", "country": "<string|null>", "assumed": <true|false>},
-    ▶   "dates": {"start": "<YYYY-MM-DD|null>", "end": "<YYYY-MM-DD|null>", "assumed": <true|false>},
-    ▶   "weather": "<short string|null>",
-    ▶   "transport": "<short string|null>",
-    ▶   "stay": "<short string|null>",
-    ▶   "experiences": ["<short string>", ...]  # 0 to 3 items max
-    ▶ }
+    Valid intents:
+      - "hotel_info": params includes {"hotel_name": "<string>", "city": "<string|null>"}
+      - "city_info": params includes {"city": "<string>"}
+      - "nearby": params includes {"place_type": "<string>", "near": {"hotel_name": "<string>|null", "city": "<string>"}}
+      - "plan": params includes {"city": "<string>", "start": "<YYYY-MM-DD>", "end": "<YYYY-MM-DD>"}
+      - "weather": params includes {"city": "<string>", "start": "<YYYY-MM-DD|null>", "end": "<YYYY-MM-DD|null>"}
+
+    Tool usage rules:
+      - If intent == "weather": call get_weather (single day) OR get_weather_range (date range) ONCE.
+      - If intent == "nearby": call get_nearby_places ONCE.
+      - If intent == "hotel_info": call get_hotel_info ONCE.
+      - If intent == "city_info": call get_city_info ONCE.
+      - If intent == "plan": you MAY call get_weather_range ONCE to enrich, else produce plan without tools.
+      - NEVER call more than one tool per response.
+
+    Output format:
+      Return EXACTLY one JSON object (no markdown, no backticks, no extra text), schema:
+
+      {
+        "intent": "<hotel_info|city_info|nearby|plan|weather>",
+        "destination": {"city": "<string|null>", "country": "<string|null>", "assumed": <true|false>},
+        "dates": {"start": "<YYYY-MM-DD|null>", "end": "<YYYY-MM-DD|null>", "assumed": <true|false>},
+
+        "hotel": {
+          "name": "<string|null>",
+          "address": "<string|null>",
+          "description": "<short string|null>",
+          "amenities": ["<string>", ...]  # 0..10
+        },
+
+        "city": {
+          "name": "<string|null>",
+          "overview": "<short string|null>",
+          "highlights": ["<string>", ...]
+        },
+
+        "nearby": [
+          {"name": "<string>", "type": "<string>", "distance_km": <number|null>, "note": "<string|null>"}
+        ],
+
+        "plan": [
+          {"date": "<YYYY-MM-DD>", "morning": "<string|null>", "afternoon": "<string|null>", "evening": "<string|null>"}
+        ],
+
+        "weather": "<short string|null>",          # single-day/summary
+        "weather_range": [
+          {"date": "<YYYY-MM-DD>", "summary": "<short string>"}
+        ],
+
+        "transport": "<short string|null>",
+        "stay": "<short string|null>",
+        "experiences": ["<string>", ...],
+
+        "notes": "<short string|null>"
+      }
 
     Rules:
-    - No delegation. No questions.
-    - Do not call tools more than once.
-    - If any field is unknown/not requested, set it to null (or empty list for experiences).
+      - Fill ONLY fields relevant to the incoming intent; set all others to null or [].
+      - Prefer city (not country); if only a country was given, infer reasonably and set destination.assumed=true.
+      - Be concise, deterministic, and never include markdown.
+
   expected_output: >
     Exactly one JSON object as specified above (no markdown).
   agent: travel_manager
