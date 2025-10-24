@@ -1,0 +1,85 @@
+# Manager task - orchestrates all other agents
+travel_manager_task:
+  description: >
+    Analyze the ongoing {conversation_input} to detect travel-related intent and extract structured trip context.
+    Specifically:
+      - Identify travel intent phrases (e.g., "I want to travel", "planning a trip", "vacation").
+      - Detect destination mentions (countries, cities, regions) and temporal expressions (dates, seasons).
+      - Infer additional user details when available (starting_point, travel dates, companions, budget, mood, etc.).
+      -   If minimal details are provided (e.g., "I want to go to Paris"), provide general destination information.
+    Once sufficient context is gathered:
+      - Update the global context using the context_manager.
+      - Delegate tasks to the appropriate specialized agents using the delegate_work tool:
+        * transportation_finder — for flights, trains, car rentals.
+        * accommodation_finder — for hotels and Airbnbs.
+        * destination_experience_finder — for activities, food, culture.
+        * weather_agent — to forecast weather.
+
+    The delegate_work tool expects these parameters:
+      - task: str → a natural-language description of what to do.
+      - context: str → a serialized string with the extracted parameters (destination, dates, etc.).
+      - coworker: str → the name or role of the target agent.
+
+    Ensure all delegated tasks are context-aware and coherent.
+    The final message should summarize the travel plan or suggested next step in a friendly, conversational tone.
+  expected_output: >
+    1. Write in a warm, human-friendly tone, as if you were talking directly to the user. You may add emojis where appropriate.
+    2. Summarize the key points of each category:
+      - Weather
+      - Transportation
+      - Accommodation
+      - Experiences & Activities
+    3. Remove any internal notes, debug info, or agent reasoning. Only include information useful to the user.
+    4. If some information is missing (like starting point, budget, or travel companions), ask politely for it in a clear and concise way.
+    5. Structure the output in readable sections with headings, bullet points, or short paragraphs.
+    6. Keep it concise, engaging, and easy to follow.
+  agent: travel_manager
+
+# Weather forecasting task
+gather_weather_info:
+  description: >
+    Based on the extracted context from the travel manager (destination: destination, dates: start_date to end_date),
+    research comprehensive weather information for the destination during the specified travel period.
+    Provide temperature ranges, precipitation forecasts, seasonal conditions, and weather-related travel advisories.
+    This information will help other agents make weather-appropriate recommendations.
+  expected_output: >
+    Detailed weather forecast with daily conditions, temperature ranges, precipitation probability, 
+    seasonal characteristics, and practical weather-related travel tips for destination.
+  agent: weather_agent
+
+# Transportation search task
+find_transportation:
+  description: >
+    Using the context provided by the travel manager (starting_point: starting_point, destination: destination, 
+    dates: start_date to end_date), search for all available transportation options.
+    Find trains, flights, and car rental services with prices, schedules, duration, timing, and stops.
+    Include both outbound and return journey options. Consider weather conditions when available.
+  expected_output: >
+    Comprehensive transportation report listing all trains, flights, and car rentals with detailed pricing, 
+    schedules, duration, availability, and booking recommendations for the specified route and dates.
+  agent: transportation_finder
+
+# Accommodation search task
+find_accommodation:
+  description: >
+    Based on the travel context destination: destination, dates: start_date to end_date, 
+    budget: budget, companions: companions), find all suitable hotels and Airbnb accommodations.
+    Include pricing, quality ratings, amenities, property types, and location advantages.
+    Consider weather forecasts and proximity to planned activities when making recommendations.
+  expected_output: >
+    Detailed accommodation guide with hotels and Airbnb options, including prices, ratings, amenities, 
+    property descriptions, location benefits, and personalized recommendations based on user preferences.
+  agent: accommodation_finder
+
+# Destination experiences task
+find_experiences:
+  description: >
+    Using the extracted travel context (destination: destination , dates: start_date to end_date, 
+    mood: mood, interests: interests), research comprehensive destination experiences.
+    Find museums, restaurants/bars/coffee shops, fun activities, and provide historical context.
+    Include prices, reviews, opening hours, and consider weather when recommending indoor vs outdoor activities.
+    Tailor recommendations to the user's mood and interests.
+  expected_output: >
+    Complete destination experience guide with museums, dining options, activities (with prices and reviews), 
+    historical context, fun facts, and weather-appropriate activity suggestions personalized to user preferences.
+  agent: destination_experience_finder
