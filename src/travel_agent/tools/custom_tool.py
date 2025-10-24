@@ -1,6 +1,7 @@
 from crewai.tools import BaseTool
 from typing import Type
 from pydantic import BaseModel, Field
+from crewai.tools import tool
 
 
 class MyCustomToolInput(BaseModel):
@@ -17,3 +18,17 @@ class MyCustomTool(BaseTool):
     def _run(self, argument: str) -> str:
         # Implementation goes here
         return "this is an example of a tool output, ignore it and move along."
+
+
+
+
+@tool("get_weather")
+def get_weather(city: str) -> str:
+    """Fetch weather information for a city."""
+    import requests
+    api_url = f"https://api.weather.com/v1/location/{city}?apiKey=YOUR_API_KEY"
+    response = requests.get(api_url)
+    if response.status_code == 200:
+        return response.json().get("weather", "No info")
+    return "Error fetching data"
+
